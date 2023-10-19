@@ -1,79 +1,85 @@
 import yaml
+import math
 from typing import Dict
 from utils import search_algorithms, cost_functions, plot_utils
+import itertools
+import sys
 
+best_cost = math.inf
+best_x = []
+all_x_history = []
+all_cost_history = []
+    
+def generate_neighborhoods(array_range, dimensions, num_neighborhoods_per_dimension):
+    # Calculate the size of each grid cell for each dimension
+    cell_size = [(array_range[1] - array_range[0]) / num_neighborhoods_per_dimension] * dimensions
 
-def main(config: Dict) -> None:
-    # Get the cost function
-    if config['cost_function'] == 'sphere':
-        cost_function = cost_functions.sphere
-        x_range = [[-100, 100] for i in range(config['dimension'])]  # The range for each dimension
-    elif config['cost_function'] == 'schwefel':
-        cost_function = cost_functions.schwefel
-        x_range = [[-500, 500] for i in range(config['dimension'])]  # The range for each dimension
-    elif config['cost_function'] == 'schaffer':
-        cost_function = cost_functions.schaffer
-        x_range = [[-100, 100] for i in range(config['dimension'])]  # The range for each dimension
-    elif config['cost_function'] == 'griewank':
-        cost_function = cost_functions.griewank
-        x_range = [[-100, 100] for i in range(config['dimension'])]  # The range for each dimension
-    elif config['cost_function'] == 'func7':
-        cost_function = cost_functions.func7
-        x_range = [[-1000, 1000] for i in range(config['dimension'])]  # The range for each dimension
-    elif config['cost_function'] == 'func8':
-        cost_function = cost_functions.func8
-        x_range = [[-32, 32] for i in range(config['dimension'])]  # The range for each dimension
-    elif config['cost_function'] == 'func9':
-        cost_function = cost_functions.func9
-        x_range = [[-5, 5] for i in range(config['dimension'])]  # The range for each dimension
-    elif config['cost_function'] == 'func11':
-        cost_function = cost_functions.func11
-        x_range = [[-0.5, 0.5] for i in range(config['dimension'])]  # The range for each dimension
-    elif config['cost_function'] == 'revenue':
-        cost_function = cost_functions.revenue
-        x_range = [[0, 20000] for i in range(config['dimension'])]  # The range for each dimension (it must be 2 for this function)
+    # Generate grid cell boundaries for each dimension
+    grid_boundaries = [list(range(array_range[0], array_range[1] + 1, int(size))) for size in cell_size]
 
+    # Generate neighborhoods by iterating through grid cell combinations
+    neighborhoods = []
+    for combination in itertools.product(*grid_boundaries):        
+        neighborhood = []
+        for i in range(dimensions):
+            
+            if combination[i] < grid_boundaries[0][-1] or combination[i] + int(cell_size[i]) <= grid_boundaries[0][-1]:
+                neighborhood.append([combination[i], combination[i] + int(cell_size[i])])
+                
+        # Adding neighborhood to our list
+        if len(neighborhood) == dimensions:
+            neighborhoods.append(neighborhood)        
+
+    return neighborhoods
+
+def VNS(cost_function, neighborhoods):
+    global best_cost
+    global best_x
+    global all_x_history
+    global all_cost_history
+    
     # Get the search algorithm
     if config['search_algorithm'] == 'local_search':
-        best_x, best_cost, x_history, cost_history = search_algorithms.local_search(cost_function=cost_function, max_itr=config['local_search']['max_itr'],
-                                                                                    convergence_threshold=config['local_search']['convergence_threshold'],
-                                                                                    x_initial=config['x_initial'], x_range=x_range)
-    elif config['search_algorithm'] == 'iterative_local_search':
-        best_x, best_cost, x_history, cost_history = search_algorithms.iterative_local_search(cost_function=cost_function, max_itr_ils=config['iterative_local_search']['max_itr_ils'],
-                                                                                              max_itr_ls=config['iterative_local_search']['max_itr_ls'],
-                                                                                              convergence_threshold=config['iterative_local_search']['convergence_threshold'],
-                                                                                              x_initial=config['x_initial'], x_range=x_range)
-    elif config['search_algorithm'] == 'simulated_annealing':
-        best_x, best_cost, x_history, cost_history = search_algorithms.simulated_annealing(cost_function=cost_function, max_itr=config['simulated_annealing']['max_itr'],
-                                                                                           temperature=config['simulated_annealing']['temperature'],
-                                                                                           alpha=config['simulated_annealing']['alpha'],
-                                                                                           beta=config['simulated_annealing']['beta'],
-                                                                                           x_initial=config['x_initial'], x_range=x_range,
-                                                                                           temperature_decrement_method=config['simulated_annealing']['temperature_decrement_method'])
-    elif config['search_algorithm'] == 'pso':
-        best_x, best_cost, x_history, cost_history, individuals = search_algorithms.pso(cost_function=cost_function, num_particles=config['pso']['num_particles'], max_itr=config['pso']['max_itr'],
-                                                                                        alpha_1=config['pso']['alpha_1'], alpha_2=config['pso']['alpha_2'], alpha_3=config['pso']['alpha_3'],
-                                                                                        x_initial=config['x_initial'], x_range=x_range,
-                                                                                        local_best_option=config['pso']['local_best_option'],
-                                                                                        global_best_option=config['pso']['global_best_option'],
-                                                                                        ls_max_itr=config['pso']['local_search']['max_itr'], ls_convergence_threshold=config['pso']['local_search']['convergence_threshold'])
-    elif config['search_algorithm'] == 'ga':
-        best_x, best_cost, x_history, cost_history, individuals = search_algorithms.ga(cost_function=cost_function, population_size=config['ga']['population_size'], max_itr=config['ga']['max_itr'],
-                                                                                       mutation_rate=config['ga']['mutation_rate'], crossover_rate=config['ga']['crossover_rate'], x_initial=config['x_initial'],
-                                                                                       x_range=x_range)
+        k = 0
+        
+        while k < len(neighborhoods):
+            best_cur_x, best_cur_cost, cur_x_history, cur_cost_history = search_algorithms.local_search(cost_function=cost_function, max_itr=config['local_search']['max_itr'],
+                                                                                        convergence_threshold=config['local_search']['convergence_threshold'],
+                                                                                        x_initial=config['x_initial'], cur_neighborhood=neighborhoods[k])
+            all_x_history.extend(cur_x_history)
+            all_cost_history.extend(cur_cost_history)
+            
+            if best_cur_cost < best_cost:
+                best_cost = best_cur_cost
+                best_x = best_cur_x
+                k = 0
+            else:
+                k += 1
+    
+def main(config: Dict) -> None:
+    dimension = int(input("Enter a value for the dimension: "))
+    
+    # The actual number of neighborhoods will be num_neighborhoods_per_dimension^dimensions
+    num_neighborhoods_per_dimension = int(input("Enter a value for the number of neighborhoods per dimension: "))
 
+    # Get the cost function
+    if config['cost_function'] == 'schwefel':
+        cost_function = cost_functions.schwefel
+        x_range = [[-500, 500] for i in range(dimension)]  # The range for each dimension
+    
+    # Create neighborhoods
+    neighborhoods = generate_neighborhoods([-500, 500], dimension, num_neighborhoods_per_dimension)
+
+    VNS(cost_function, neighborhoods)
+    
     if len(best_x) == 2: 
         # If the dimensionality is 2, visualize the results.
         plot_utils.plot_results(best_x=best_x, best_cost=best_cost,
-                                x_history=x_history, cost_history=cost_history,
+                                x_history=all_x_history, cost_history=all_cost_history,
                                 cost_function=cost_function, x_range=x_range)
-        if (config['search_algorithm'] == 'pso') or (config['search_algorithm'] == 'ga'):
-            plot_utils.plot_results_with_population(best_x=best_x, individuals=individuals,
-                                                    cost_function=cost_function, x_range=x_range)
         
-        if config['cost_function'] == 'revenue':
-            print(f"Cost of trucks: {best_x[0]}")
-            print(f"Cost of sedans: {best_x[1]}")
+    print('Global best x: ', best_x)
+    print('Global best cost: ', best_cost)
 
 if __name__ == '__main__':
     with open('./config/config.yaml', 'r') as f:
