@@ -19,10 +19,8 @@ def local_search(cost_function: Callable, max_itr: int, convergence_threshold: f
                  x_initial: Optional[np.array] = None, cur_neighborhood: Optional[List[List[float]]] = None, hide_progress_bar: Optional[bool] = False) -> Tuple[np.array, float, List[np.array], List[float]]:
     # Set the x_initial
     if x_initial is None:
-        print('cur_neighborhood ', cur_neighborhood)
         x_initial = [random.uniform(cur_neighborhood[i][0], cur_neighborhood[i][1]) for i in range(len(cur_neighborhood))]
 
-    print('x_initial ', x_initial)
     x_current = x_initial
     cost_current = cost_function(x_current)
 

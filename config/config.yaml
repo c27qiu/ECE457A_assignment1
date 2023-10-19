@@ -3,5 +3,5 @@ cost_function: schwefel # Options: sphere, schwefel, schaffer, griewank, func7, 
 x_initial: null # A d-dimensional list, such as [1.0, -1.0], or null. If null, the x_initial will be a random point in the domain.
 
 local_search:
-    max_itr: 300
+    max_itr: 100
     convergence_threshold: 0.001
